@@ -5,7 +5,7 @@ use std::path::PathBuf;
 pub struct Config {
     #[serde(default = "default_port")]
     pub port: u16,
-    /// "auto" | "zh" | "en" | "ja" | "ko"
+    /// "auto" | "zh" | "en" | "ja" | "ko" | "ru"
     #[serde(default = "default_lang")]
     pub lang: String,
     #[serde(default)]

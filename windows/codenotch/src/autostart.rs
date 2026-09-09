@@ -35,22 +35,22 @@ pub fn enable() -> Result<String, String> {
     let exe = std::env::current_exe().map_err(|e| e.to_string())?;
     let val = format!("\"{}\" --silent", exe.display());
     match reg(&["add", RUN_KEY, "/v", NAME, "/t", "REG_SZ", "/d", &val, "/f"]) {
-        Some((true, _)) => Ok("start at sign-in enabled (silent until a session appears)".into()),
+        Some((true, _)) => Ok(crate::i18n::t("msg_autostart_on").into()),
         Some((false, out)) => Err(out),
-        None => Err("reg.exe failed to run".into()),
+        None => Err(crate::i18n::t("msg_reg_failed").into()),
     }
 }
 
 pub fn disable() -> Result<String, String> {
     match reg(&["delete", RUN_KEY, "/v", NAME, "/f"]) {
-        Some((true, _)) => Ok("start at sign-in disabled".into()),
+        Some((true, _)) => Ok(crate::i18n::t("msg_autostart_off").into()),
         Some((false, out)) => {
             if out.to_lowercase().contains("unable to find") || out.contains("找不到") { // reg.exe answers in the OS language; "找不到" is the Chinese "unable to find"
-                Ok("start at sign-in was not enabled".into())
+                Ok(crate::i18n::t("msg_autostart_absent").into())
             } else {
                 Err(out)
             }
         }
-        None => Err("reg.exe failed to run".into()),
+        None => Err(crate::i18n::t("msg_reg_failed").into()),
     }
 }

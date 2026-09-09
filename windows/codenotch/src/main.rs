@@ -196,7 +196,12 @@ pub fn toggle_drag(app: &AppHandle) {
     let _ = app;
 }
 
+/// Cursor cell switch. Off: no polling of the editor's 2 GB state.vscdb, no cell in the pill.
+/// Flip to true to bring the provider back — nothing else has to change.
+pub const CURSOR_ENABLED: bool = false;
+
 pub fn apply_lang(app: &AppHandle, lang: &str) {
+    i18n::set_current(lang);
     {
         let st = app.state::<AppState>();
         let mut c = st.cfg.lock().unwrap();
@@ -301,6 +306,9 @@ fn open_data_dir() {
 
 #[tauri::command]
 fn get_cursor(state: tauri::State<AppState>) -> usage::UsageSnapshot {
+    if !CURSOR_ENABLED {
+        return usage::UsageSnapshot { status: "absent".into(), ..Default::default() };
+    }
     state.cursor.lock().unwrap().clone()
 }
 
@@ -584,6 +592,7 @@ fn main() {
     }
 
     let cfg = config::load();
+    i18n::set_current(&cfg.lang); // provider threads translate without an AppHandle
     let port = cfg.port;
 
     tauri::Builder::default()
@@ -591,7 +600,7 @@ fn main() {
             // Launching a freshly built exe while the old one is still running lands here: the new
             // instance is turned away and what stays on screen is the old process. Say so loudly.
             applog(&format!("single instance: another launch was refused; the running instance is build={BUILD} — quit it from the tray first if you just rebuilt"));
-            let _ = app.emit("notice", format!("Codenotch is already running ({BUILD}) — quit it from the tray before starting a new build"));
+            let _ = app.emit("notice", i18n::t("msg_already_running").replace("{build}", BUILD));
         }))
         .manage(AppState {
             store: Mutex::new(Default::default()),
@@ -635,7 +644,9 @@ fn main() {
             watcher::start(handle.clone());
             usage::start(handle.clone());
             codex::start(handle.clone());
-            cursor::start(handle.clone());
+            if CURSOR_ENABLED {
+                cursor::start(handle.clone());
+            }
             antigravity::start(handle.clone());
             activity::start(handle.clone());
             // Collecting glyphs may read icon resources out of a few executables; do it off the main thread and push when done

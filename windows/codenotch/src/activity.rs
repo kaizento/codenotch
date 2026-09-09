@@ -524,7 +524,7 @@ pub struct Presence {
 }
 
 fn presence() -> Presence {
-    Presence { cursor: crate::cursor::present(), codex: crate::codex::present(), gemini: crate::antigravity::present() }
+    Presence { cursor: crate::CURSOR_ENABLED && crate::cursor::present(), codex: crate::codex::present(), gemini: crate::antigravity::present() }
 }
 
 fn read_all(p: Presence, ctx: &mut Ctx) -> Vec<Activity> {

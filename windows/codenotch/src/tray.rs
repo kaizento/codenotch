@@ -40,8 +40,11 @@ pub fn build_menu(app: &AppHandle, lang: &str) -> tauri::Result<Menu<Wry>> {
     let l_ko = CheckMenuItemBuilder::with_id("lang-ko", "한국어")
         .checked(lang == "ko")
         .build(app)?;
+    let l_ru = CheckMenuItemBuilder::with_id("lang-ru", "Русский")
+        .checked(lang == "ru")
+        .build(app)?;
     let lang_menu = SubmenuBuilder::new(app, tr(lang, "language"))
-        .items(&[&l_auto, &l_zh, &l_en, &l_ja, &l_ko])
+        .items(&[&l_auto, &l_zh, &l_en, &l_ja, &l_ko, &l_ru])
         .build()?;
     let refresh = MenuItemBuilder::with_id("refresh", tr(lang, "refresh")).build(app)?;
     let reset = MenuItemBuilder::with_id("reset", tr(lang, "reset_pos")).build(app)?;
@@ -101,7 +104,9 @@ fn handle(app: &AppHandle, id: &str) {
             }
             crate::usage::request_refresh();
             crate::codex::request_refresh();
-            crate::cursor::request_refresh();
+            if crate::CURSOR_ENABLED {
+                crate::cursor::request_refresh();
+            }
             crate::antigravity::request_refresh();
             let a = app.clone();
             std::thread::spawn(move || crate::reload_glyphs(&a));
@@ -124,7 +129,7 @@ fn handle(app: &AppHandle, id: &str) {
 fn notice(app: &AppHandle, r: Result<String, String>) {
     let msg = match r {
         Ok(m) => m,
-        Err(e) => format!("Error: {e}"),
+        Err(e) => crate::i18n::t("msg_error").replace("{e}", &e),
     };
     let _ = app.emit("notice", &msg);
 }

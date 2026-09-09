@@ -138,10 +138,10 @@ fn parse_reset(v: &serde_json::Value) -> Option<u64> {
 
 fn label_for(kind: &str) -> String {
     match kind {
-        "session" => "Current session".into(),
-        "seven_day" | "weekly_all" => "Weekly (all models)".into(),
-        "seven_day_opus" | "weekly_opus" => "Weekly (Opus)".into(),
-        "weekly_scoped" => "Weekly (model-scoped)".into(),
+        "session" => crate::i18n::t("win_session").into(),
+        "seven_day" | "weekly_all" => crate::i18n::t("win_weekly_all").into(),
+        "seven_day_opus" | "weekly_opus" => crate::i18n::t("win_weekly_opus").into(),
+        "weekly_scoped" => crate::i18n::t("win_weekly_scoped").into(),
         other => {
             // Forward compatibility: an unknown kind gets a readable label
             let mut s = other.replace('_', " ");
@@ -280,7 +280,7 @@ pub fn start(app: AppHandle) {
             match read_credentials() {
                 None => set_and_broadcast(&app, |u| {
                     u.status = "needsAuth".into();
-                    u.note = "No Claude Code credential found".into();
+                    u.note = crate::i18n::t("note_no_credential").into();
                 }),
                 Some((token, expired)) => {
                     // On 401/403 re-read the credential and retry once (Claude Code may have just refreshed it)
@@ -292,9 +292,9 @@ pub fn start(app: AppHandle) {
                         other => other,
                     };
                     let auth_note = if expired {
-                        "Credential expired — run any claude command (or chat with Claude) to refresh it"
+                        crate::i18n::t("note_cred_expired")
                     } else {
-                        "Credential rejected (switched accounts?)"
+                        crate::i18n::t("note_cred_rejected")
                     };
                     match result {
                         Ok(windows) => {
@@ -318,7 +318,7 @@ pub fn start(app: AppHandle) {
                                 if !u.windows.is_empty() {
                                     u.status = "stale".into();
                                 }
-                                u.note = format!("Rate limited, retrying in {wait}s");
+                                u.note = crate::i18n::t("note_rate_limited").replace("{n}", &wait.to_string());
                                 u.backoff_until = now_ms() + wait * 1000;
                             });
                         }

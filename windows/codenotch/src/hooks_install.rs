@@ -70,7 +70,7 @@ pub fn install() -> Result<String, String> {
         .ok_or("cannot locate the program directory")?
         .join("codenotch-hook.exe");
     if !hook_exe.exists() {
-        return Err(format!("missing {}", hook_exe.display()));
+        return Err(crate::i18n::t("msg_missing_exe").replace("{path}", &hook_exe.display().to_string()));
     }
 
     let mut root = load(&path);
@@ -97,17 +97,19 @@ pub fn install() -> Result<String, String> {
     }
 
     backup_and_write(&path, &root)?;
-    Ok(format!("wrote {} ({} events)", path.display(), WIRING.len()))
+    Ok(crate::i18n::t("msg_hooks_written")
+        .replace("{path}", &path.display().to_string())
+        .replace("{n}", &WIRING.len().to_string()))
 }
 
 pub fn uninstall() -> Result<String, String> {
     let path = settings_path().ok_or("cannot find the user directory")?;
     if !path.exists() {
-        return Ok("settings.json does not exist, nothing to uninstall".into());
+        return Ok(crate::i18n::t("msg_no_settings").into());
     }
     let mut root = load(&path);
     let Some(hooks) = root["hooks"].as_object_mut() else {
-        return Ok("no hooks configuration found".into());
+        return Ok(crate::i18n::t("msg_no_hooks").into());
     };
     let mut removed = 0;
     for (_, v) in hooks.iter_mut() {
@@ -118,5 +120,5 @@ pub fn uninstall() -> Result<String, String> {
         }
     }
     backup_and_write(&path, &root)?;
-    Ok(format!("removed {removed} Codenotch hook(s)"))
+    Ok(crate::i18n::t("msg_hooks_removed").replace("{n}", &removed.to_string()))
 }

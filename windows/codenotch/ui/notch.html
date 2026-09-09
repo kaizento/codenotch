@@ -113,6 +113,56 @@ const AMPLE='#00FF88', WATCH='#F2FF00', CRIT='#FF3F00';
 const TRACK='#303030', AMBER='#FFBF00', RUNGREEN='#28E07B';
 const tone=f=> f>=0.8?CRIT : f>=0.5?WATCH : AMPLE;
 
+/* Page dictionary. Keys match the Rust side (i18n.rs); the language comes from stateSnap.lang_resolved,
+   which the Rust side already resolves (WebView2's navigator.language is unreliable). */
+const STRINGS={
+  ru:{
+    usage_title:'{p}: расход',
+    updated:'Обновлено {ago}',
+    waiting_first:'Ждём первое показание…',
+    resetting:'Обнуляется…',
+    resets_in:'Обнулится через {n} мин',
+    resets_at:'Обнулится в {t}',
+    resets_on:'Обнулится {d} в {t}',
+    used:'Использовано {n}%',
+    ago_min:'{n} мин назад',
+    ago_hour:'{n} ч назад',
+    requests_today:'~{n} запр. сегодня',
+    no_requests_today:'сегодня запросов нет',
+    signin_claude:'Войдите в Claude Code, чтобы видеть расход.',
+    signin_codex:'Войдите в Codex, чтобы видеть расход.',
+    signin_cursor:'Войдите в Cursor, чтобы видеть расход.',
+    signin_gemini:'Войдите в Antigravity, чтобы видеть расход.',
+  },
+  en:{
+    usage_title:'{p} Usage',
+    updated:'Updated {ago}',
+    waiting_first:'Waiting for first reading…',
+    resetting:'Resetting…',
+    resets_in:'Resets in {n} min',
+    resets_at:'Resets at {t}',
+    resets_on:'Resets {d} {t}',
+    used:'{n}% Used',
+    ago_min:'{n}m ago',
+    ago_hour:'{n}h ago',
+    requests_today:'~{n} requests today',
+    no_requests_today:'no requests today',
+    signin_claude:'Sign in to Claude Code to see usage.',
+    signin_codex:'Sign in to Codex to see usage.',
+    signin_cursor:'Sign in to Cursor to see usage.',
+    signin_gemini:'Sign in to Antigravity to see usage.',
+  },
+};
+function t(key,vars){
+  const lang=(stateSnap&&stateSnap.lang_resolved)||'en';
+  const table=STRINGS[lang]||STRINGS.en;
+  let out=table[key]||STRINGS.en[key]||key;
+  for(const k in (vars||{})) out=out.split('{'+k+'}').join(vars[k]);
+  return out;
+}
+function localeTag(){ return ((stateSnap&&stateSnap.lang_resolved)==='ru')?'ru-RU':'en-US'; }
+
+let stateSnap={sessions:[],agg:'idle',lang_resolved:'en'};
 let usage={status:'',windows:[],fetched_at:0,note:''};
 let codexSnap={status:'absent',windows:[],fetched_at:0,note:''};
 let cursorSnap={status:'absent',windows:[],fetched_at:0,note:''};
@@ -154,7 +204,6 @@ function headlineOf(snap){
   return snap.windows[0];
 }
 function staleOf(snap){ if(snap.status==='stale') return true; return snap.fetched_at>0 && (Date.now()-snap.fetched_at)>5*60*1000; }
-let stateSnap={sessions:[],agg:'idle'};
 
 function svgArc(r,frac,color,width,extra=''){
   const C=2*Math.PI*r;
@@ -207,17 +256,17 @@ function renderRing(){
 function resetCopy(ms){
   if(!ms) return '';
   const diff=ms-Date.now();
-  if(diff<=0) return 'Resetting…';
-  if(diff<60*60*1000) return `Resets in ${Math.max(1,Math.round(diff/60000))} min`;
+  if(diff<=0) return t('resetting');
+  if(diff<60*60*1000) return t('resets_in',{n:Math.max(1,Math.round(diff/60000))});
   const d=new Date(ms);
-  const t=d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
-  if(diff<24*60*60*1000) return `Resets at ${t}`;
-  return `Resets ${d.toLocaleDateString('en-US',{weekday:'short'})} ${t}`;
+  const hhmm=d.toLocaleTimeString(localeTag(),{hour:'numeric',minute:'2-digit'});
+  if(diff<24*60*60*1000) return t('resets_at',{t:hhmm});
+  return t('resets_on',{d:d.toLocaleDateString(localeTag(),{weekday:'short'}),t:hhmm});
 }
 
 function ago(ms){
   const m=Math.round((Date.now()-ms)/60000);
-  return m<60?`${m}m ago`:`${Math.round(m/60)}h ago`;
+  return m<60?t('ago_min',{n:m}):t('ago_hour',{n:Math.round(m/60)});
 }
 
 const STATE_DOT={running:RUNGREEN,attention:AMBER,done:'#57c7ff'};
@@ -228,24 +277,24 @@ function renderCard(){
   const p=providers().find(x=>x.id===hoverId)||providers()[0];
   const snap=p.snap;
   const headIcon=glyphHtml(p,true);
-  let html=`<div class="c-head">${headIcon}<span class="c-title">${p.name} Usage</span></div>`;
-  if(staleOf(snap)&&snap.fetched_at) html+=`<div class="c-sub">Updated ${ago(snap.fetched_at)}</div>`;
+  let html=`<div class="c-head">${headIcon}<span class="c-title">${esc(t('usage_title',{p:p.name}))}</span></div>`;
+  if(staleOf(snap)&&snap.fetched_at) html+=`<div class="c-sub">${esc(t('updated',{ago:ago(snap.fetched_at)}))}</div>`;
   if(snap.status==='needsAuth'){
-    const who={claude:'Sign in to Claude Code to see usage.',cursor:'Sign in to Cursor to see usage.',codex:'Sign in to Codex to see usage.',gemini:'Sign in to Antigravity to see usage.'}[p.id]||'';
+    const who=t({claude:'signin_claude',cursor:'signin_cursor',codex:'signin_codex',gemini:'signin_gemini'}[p.id]||'');
     html+=`<div class="c-note">${who}<br>${snap.note||''}</div>`;
   }else if(!snap.windows.length){
-    html+=`<div class="c-note">${snap.note||'Waiting for first reading…'}</div>`;
+    html+=`<div class="c-note">${esc(snap.note||t('waiting_first'))}</div>`;
   }else{
     for(const w of snap.windows){
       if(w.count!=null){
         html+=`<div class="win"><div class="w-row"><span class="w-label">${w.label}</span></div>
-          <div class="w-used">${w.count>0?`~${w.count} request${w.count===1?'':'s'} today`:'no requests today'}</div></div>`;
+          <div class="w-used">${esc(w.count>0?t('requests_today',{n:w.count}):t('no_requests_today'))}</div></div>`;
         continue;
       }
       html+=`<div class="win">
         <div class="w-row"><span class="w-label">${w.label}</span><span class="w-reset">${resetCopy(w.resets_at)}</span></div>
         <div class="w-track"><div class="w-fill" style="width:${(Math.min(w.used,1)*100).toFixed(0)}%;background:${tone(w.used)}"></div></div>
-        <div class="w-used">${w.derived?'~':''}${Math.round(w.used*100)}% Used</div>
+        <div class="w-used">${w.derived?'~':''}${esc(t('used',{n:Math.round(w.used*100)}))}</div>
       </div>`;
     }
     if(snap.note) html+=`<div class="c-note">${snap.note}</div>`;

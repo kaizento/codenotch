@@ -214,23 +214,23 @@ fn label_for(window_minutes: Option<f64>, id: &str) -> String {
     match window_minutes {
         Some(m) if m > 0.0 => {
             if m < 60.0 {
-                format!("{}m limit", m as i64)
+                crate::i18n::t("win_min_limit").replace("{n}", &(m as i64).to_string())
             } else if m < 60.0 * 24.0 {
-                format!("{}h limit", (m / 60.0) as i64)
+                crate::i18n::t("win_hour_limit").replace("{n}", &((m / 60.0) as i64).to_string())
             } else {
                 let days = (m / (60.0 * 24.0)).round() as i64;
                 match days {
-                    7 => "Weekly limit".into(),
-                    30 => "Monthly limit".into(),
-                    d => format!("{d}d limit"),
+                    7 => crate::i18n::t("win_weekly_limit").into(),
+                    30 => crate::i18n::t("win_monthly_limit").into(),
+                    d => crate::i18n::t("win_day_limit").replace("{n}", &d.to_string()),
                 }
             }
         }
         _ => {
             if id == "primary" {
-                "Current session".into()
+                crate::i18n::t("win_session").into()
             } else {
-                "Longer window".into()
+                crate::i18n::t("win_longer").into()
             }
         }
     }
@@ -379,7 +379,7 @@ fn read_once() -> UsageSnapshot {
     let now = now_ms();
     if held_until > now {
         snap.backoff_until = held_until;
-        live_note = Some(format!("Rate limited — retrying in {}s", (held_until - now) / 1000));
+        live_note = Some(crate::i18n::t("note_rate_limited_dash").replace("{n}", &((held_until - now) / 1000).to_string()));
     } else {
         match load_credential() {
             None => {
@@ -395,12 +395,12 @@ fn read_once() -> UsageSnapshot {
                         snap.status = "ok".into();
                         snap.windows = windows;
                         snap.fetched_at = now_ms();
-                        snap.note = plan.map(|p| format!("{} · via Codex", cap(&p))).unwrap_or_default();
+                        snap.note = plan.map(|p| crate::i18n::t("note_via_codex").replace("{plan}", &cap(&p))).unwrap_or_default();
                         return snap;
                     }
                     let keys: Vec<String> = v.as_object().map(|o| o.keys().cloned().collect()).unwrap_or_default();
                     crate::applog(&format!("codex: usage reply has no windows (top-level keys {keys:?}), falling back to the rollout"));
-                    live_note = Some("Codex reported no usage windows".into());
+                    live_note = Some(crate::i18n::t("note_codex_no_windows").into());
                 }
                 Err(LiveErr::NeedsAuth) => {
                     needs_auth = true;
@@ -414,12 +414,12 @@ fn read_once() -> UsageSnapshot {
                     let until = now_ms() + secs * 1000;
                     BACKOFF_UNTIL.store(until, std::sync::atomic::Ordering::Relaxed);
                     snap.backoff_until = until;
-                    live_note = Some(format!("Rate limited — retrying in {secs}s"));
+                    live_note = Some(crate::i18n::t("note_rate_limited_dash").replace("{n}", &secs.to_string()));
                     crate::applog(&format!("codex: usage endpoint returned 429, retrying in {secs}s"));
                 }
                 Err(LiveErr::Other(e)) => {
                     crate::applog(&format!("codex: live read failed ({e}), falling back to the rollout"));
-                    live_note = Some(format!("Live read failed ({e})"));
+                    live_note = Some(crate::i18n::t("note_live_failed").replace("{e}", &e.to_string()));
                 }
             },
         }
